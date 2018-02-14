@@ -1,10 +1,11 @@
 from time import localtime
-import urllib
+from Tkinter import *
 import urllib2
 import json
 
 #globally accessable dict that will contain the item_id and item_name pairings
 itemNames = {}
+error_encountered=False
 
 #attempts to open a local file that contains the names of all encountered items in a dict format
 # {95: "Berserker's Reinforced Scale Boots", 96:"Rampager's Sneakthief Mask of the Citadel"}
@@ -36,8 +37,8 @@ def getItemId(item_id, authKey):
         return itemNames[item_id]
     else:
         theUrl = "https://api.guildwars2.com/v2/items/" + str(item_id)
-        print "New item found accessing:"
-        print theUrl
+        print "New item found! accessing:"
+        #print theUrl
         req = urllib2.Request(theUrl)
         request = urllib2.urlopen(req)
         json_parsed = json.loads(request.read())
@@ -87,13 +88,14 @@ def apiQuery( authKey, timing, buySell ):
 
     while True:
         #do something
-        currentUrl = theUrl + "page_size=200&page=" + str(page) + "&access_token=" + apiKey
-        print currentUrl
+        currentUrl = theUrl + "page_size=200&page=" + str(page) + "&access_token=" + authKey
+        #print currentUrl
         req = urllib2.Request(currentUrl)
         try:
             urllib2.urlopen(req)
         except urllib2.HTTPError as e:
             status = e.reason
+            error_encountered=True
         else:
             request = urllib2.urlopen(req)
             json_parsed = json.loads(request.read())
@@ -109,7 +111,7 @@ def apiQuery( authKey, timing, buySell ):
                 for i in range(0, len(json_parsed)):
                     fileObjectWrite.write(getItemId(json_parsed[i]['item_id'], authKey) + "," + str(json_parsed[i]["price"]) + "," +
                                           str(json_parsed[i]["quantity"]) + "," +
-                                          str(json_parsed[i]["price"] / json_parsed[i]["quantity"]) + "," +
+                                          str(json_parsed[i]["price"]/json_parsed[i]["quantity"]) + "," +
                                           json_parsed[i]["created"] + "," + json_parsed[i]["purchased"] + "\n")
 
             page += 1
@@ -121,91 +123,52 @@ def apiQuery( authKey, timing, buySell ):
 
 
 
+class Application(Frame):
+    """The actual GUI interface for using this program"""
+    def __init__(self, master):
+        Frame.__init__(self, master)
+        self.grid()
+        self.create_widgets()
 
-# what would this GW2 APi actually need to do?
-#
-# query server for trades, print results to a .txt or .csv document
-# filter results by time, by item, by flipping value
-# extracts the item ID based off item name
-# basic interface
-# saves the key in a .txt file so that it can be loaded from memory, not entered every run
-# could save the key for multiple characters/accounts and selected through the gui
-# output file will be titled by the day and time, like trades8-22-830pm
-#
-#
-#
-#
+
+    def create_widgets(self):
+        Label(self, text="Copy/Paste the API key (Generated per account at https://account.arena.net/applications").grid(row=0, column=0, sticky=W)
+        self.textbox = Entry(self, width=80)
+        self.textbox.grid(row=1, column=0, sticky=W)
+        Label(self, text="Select which trade records you wish to download (history is limited to 3 months old)").grid(row=2, column=0, sticky=W)
+        self.bought=BooleanVar()
+        Checkbutton(self, text="History: Bought", variable=self.bought).grid(row=3, column=0, sticky=W)
+        self.sold=BooleanVar()
+        Checkbutton(self, text="History: Sold", variable=self.sold).grid(row=4, column=0, sticky=W)
+        self.buying=BooleanVar()
+        Checkbutton(self, text="Present: Buying", variable=self.buying).grid(row=5, column=0, sticky=W)
+        self.selling=BooleanVar()
+        Checkbutton(self, text="Present: Selling", variable=self.selling).grid(row=6, column=0, sticky=W)
+        self.submit_button=Button(self, text="Get trades!", command=self.call_trades).grid(row=7, column=0, sticky=W)
+
+    def call_trades(self):
+        apiKey=self.textbox.get()
+        if self.sold.get():
+            apiQuery(apiKey, "history", "sells")
+        if self.bought.get():
+            apiQuery(apiKey, "history", "buys")
+        if self.selling.get():
+            apiQuery(apiKey, "current", "sells")
+        if self.buying.get():
+            apiQuery(apiKey, "current", "buys")
+        self.master.destroy()
+
+
+
 openItemNames()
-apiKey = "0C2436EC-41F1-6744-83D0-BBC3657770BAFDF990B1-954E-4B20-8A7C-DD423CE8E906"
 
-apiQuery(apiKey, "history", "sells")
-apiQuery(apiKey, "history", "buys")
-apiQuery(apiKey, "current", "sells")
-apiQuery(apiKey, "current", "buys")
+root = Tk()
+root.title("GW2 Golden")
+root.geometry("500x300")
+app=Application(root)
+root.mainloop()
 
 
 
 
 saveItemNames()
-
-
-
-#json_parsed = json.loads(fileContents)
-#
-#fileObjectWrite = open("OutputTest.csv", "w")
-#fileObjectWrite.write("item,price,quantity,created,purchased\n")
-
-#i = 391
-#fileObjectWrite.write(getItemId(json_parsed[i]['item_id'], apiKey) + "," + str(json_parsed[i]["price"]) + "," + str(json_parsed[i]["quantity"]) + "," + json_parsed[i]["created"] + "," + json_parsed[i]["purchased"])
-
-# for i in range(0, len(json_parsed)):
-#     fileObjectWrite.write(str(json_parsed[i]['item_id']) + "," + str(json_parsed[i]["price"]) + "," + str(json_parsed[i]["quantity"]) + "," + json_parsed[i]["created"] + "," + json_parsed[i]["purchased"] + "\n")
-#     print str(i)
-# fileObjectWrite.close()
-#
-# print len(json_parsed)
-
-
-#print response.read()
-
-# fileName = raw_input("Enter the name of the file to be read: ")
-#
-# fileObjectRead = open(fileName, "r")
-#
-# fileContents = fileObjectRead.read()
-#
-# print fileContents
-#
-# fileObjectRead.close()
-
-
-# fileObjectWrite = open(fileName, "w")
-#
-# fileObjectWrite.write(fileContents + raw_input("Now enter some text to add to the file: "))
-#
-# fileObjectWrite.close()
-
-
-
-
-
-# write a filename containing the current timestamp
-
-#nowTime = localtime()
-
-#print nowTime
-
-# month-day-time
-#formattedTime = str(nowTime[1]) + "-" + str(nowTime[2]) + "-" + str(nowTime[3]) + str(nowTime[4])
-
-#print formattedTime
-
-#fileObjectWrite = open(formattedTime, "w")
-
-#fileObjectWrite.write(formattedTime)
-
-#fileObjectWrite.close()
-
-
-
-
